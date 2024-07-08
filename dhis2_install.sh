@@ -95,32 +95,45 @@ sudo chown dhis:dhis /home/dhis/config/dhis.conf
 sudo chmod 600 /home/dhis/config/dhis.conf
 
 # Install and configure Tomcat 9
-log "Installing and configuring Tomcat 9..."
-sudo apt-get install -y tomcat9-user
-sudo tomcat9-instance-create /home/dhis/tomcat-dhis
-sudo chown -R dhis:dhis /home/dhis/tomcat-dhis/
+log "Installing Tomcat 9..."
+sudo apt-get install -y tomcat9
 
-# Set environment variables in setenv.sh
-log "Setting environment variables in Tomcat's setenv.sh..."
-sudo bash -c 'cat > /home/dhis/tomcat-dhis/bin/setenv.sh <<EOF
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-export DHIS2_HOME=/home/dhis/config
+# Configure Tomcat 9 for DHIS2
+log "Configuring Tomcat 9..."
+sudo mkdir -p /var/lib/tomcat9/webapps/dhis
+sudo chown -R dhis:dhis /var/lib/tomcat9/webapps/dhis
+sudo bash -c 'cat > /etc/systemd/system/tomcat9.service <<EOF
+[Unit]
+Description=Apache Tomcat Web Application Container
+After=network.target
+
+[Service]
+Type=simple
+User=dhis
+Group=dhis
+Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64"
+Environment="DHIS2_HOME=/home/dhis/config"
+ExecStart=/usr/libexec/tomcat9/tomcat-start.sh
+ExecStop=/usr/libexec/tomcat9/tomcat-stop.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
 EOF'
-
-# Make sure setenv.sh is executable
-sudo chmod +x /home/dhis/tomcat-dhis/bin/setenv.sh
 
 # Deploy DHIS2
 log "Deploying DHIS2..."
-sudo mv dhis.war /home/dhis/tomcat-dhis/webapps/dhis.war
+sudo mv dhis.war /var/lib/tomcat9/webapps/
 
 # Ensure Tomcat user has the correct permissions
 log "Setting permissions for Tomcat directories..."
-sudo chown -R dhis:dhis /home/dhis/config
-sudo chown dhis:dhis /home/dhis/tomcat-dhis/webapps/dhis.war
+sudo chown -R dhis:dhis /var/lib/tomcat9/webapps
+sudo chown dhis:dhis /var/lib/tomcat9/webapps/dhis.war
 
-# Start the Tomcat instance
-log "Starting the Tomcat instance..."
-sudo -u dhis /home/dhis/tomcat-dhis/bin/startup.sh
+# Reload systemd and restart Tomcat
+log "Reloading systemd and restarting Tomcat..."
+sudo systemctl daemon-reload
+sudo systemctl restart tomcat9
+sudo systemctl enable tomcat9
 
 log "DHIS2 installation complete. Access it at http://your_server_ip:8080/dhis"
