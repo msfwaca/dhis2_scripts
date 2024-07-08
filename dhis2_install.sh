@@ -94,46 +94,61 @@ log "Setting permissions for DHIS2 configuration file..."
 sudo chown dhis:dhis /home/dhis/config/dhis.conf
 sudo chmod 600 /home/dhis/config/dhis.conf
 
-# Install and configure Tomcat 9
-log "Installing Tomcat 9..."
-sudo apt-get install -y tomcat9
+# Download and install Tomcat 9 manually
+log "Downloading and installing Tomcat 9..."
+cd /tmp
+wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.64/bin/apache-tomcat-9.0.64.tar.gz
+sudo tar -xzf apache-tomcat-9.0.64.tar.gz -C /opt/
+sudo mv /opt/apache-tomcat-9.0.64 /opt/tomcat9
+sudo chown -R dhis:dhis /opt/tomcat9
 
-# Configure Tomcat 9 for DHIS2
-log "Configuring Tomcat 9..."
-sudo mkdir -p /var/lib/tomcat9/webapps/dhis
-sudo chown -R dhis:dhis /var/lib/tomcat9/webapps/dhis
+# Set environment variables in setenv.sh
+log "Setting environment variables in Tomcat's setenv.sh..."
+sudo bash -c 'cat > /opt/tomcat9/bin/setenv.sh <<EOF
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export DHIS2_HOME=/home/dhis/config
+EOF'
+
+# Make sure setenv.sh is executable
+sudo chmod +x /opt/tomcat9/bin/setenv.sh
+
+# Deploy DHIS2
+log "Deploying DHIS2..."
+sudo mv dhis.war /opt/tomcat9/webapps/
+
+# Ensure Tomcat user has the correct permissions
+log "Setting permissions for Tomcat directories..."
+sudo chown -R dhis:dhis /opt/tomcat9/webapps
+sudo chown dhis:dhis /opt/tomcat9/webapps/dhis.war
+
+# Create a systemd service file for Tomcat 9
+log "Creating systemd service file for Tomcat 9..."
 sudo bash -c 'cat > /etc/systemd/system/tomcat9.service <<EOF
 [Unit]
-Description=Apache Tomcat Web Application Container
+Description=Apache Tomcat 9 Web Application Container
 After=network.target
 
 [Service]
-Type=simple
+Type=forking
 User=dhis
 Group=dhis
 Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64"
 Environment="DHIS2_HOME=/home/dhis/config"
-ExecStart=/usr/libexec/tomcat9/tomcat-start.sh
-ExecStop=/usr/libexec/tomcat9/tomcat-stop.sh
+Environment="CATALINA_PID=/opt/tomcat9/temp/tomcat.pid"
+Environment="CATALINA_HOME=/opt/tomcat9"
+Environment="CATALINA_BASE=/opt/tomcat9"
+ExecStart=/opt/tomcat9/bin/startup.sh
+ExecStop=/opt/tomcat9/bin/shutdown.sh
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
 EOF'
 
-# Deploy DHIS2
-log "Deploying DHIS2..."
-sudo mv dhis.war /var/lib/tomcat9/webapps/
-
-# Ensure Tomcat user has the correct permissions
-log "Setting permissions for Tomcat directories..."
-sudo chown -R dhis:dhis /var/lib/tomcat9/webapps
-sudo chown dhis:dhis /var/lib/tomcat9/webapps/dhis.war
-
 # Reload systemd and restart Tomcat
 log "Reloading systemd and restarting Tomcat..."
 sudo systemctl daemon-reload
-sudo systemctl restart tomcat9
+sudo systemctl start tomcat9
 sudo systemctl enable tomcat9
 
 log "DHIS2 installation complete. Access it at http://your_server_ip:8080/dhis"
