@@ -3,16 +3,27 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-# Function to log and echo messages
+# Function to log and echo messages securely
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $@"
 }
 
-# Check for required environment variables
+# Check for required environment variables and log their presence
+log "Checking required environment variables..."
+[ -z "$DB_NAME" ] && log "ERROR: DB_NAME is not set!" || log "DB_NAME is set to $DB_NAME"
+[ -z "$DB_USER" ] && log "ERROR: DB_USER is not set!" || log "DB_USER is set to $DB_USER"
+[ -z "$DB_PASSWORD" ] && log "ERROR: DB_PASSWORD is not set!" || log "DB_PASSWORD is set to $DB_PASSWORD"
+[ -z "$DB_PORT" ] && log "ERROR: DB_PORT is not set!" || log "DB_PORT is set to $DB_PORT"
+[ -z "$DHIS2_VERSION" ] && log "ERROR: DHIS2_VERSION is not set!" || log "DHIS2_VERSION is set to $DHIS2_VERSION"
+[ -z "$DOMAIN_NAME" ] && log "ERROR: DOMAIN_NAME is not set!" || log "DOMAIN_NAME is set to $DOMAIN_NAME"
+
+# Proceed with the rest of the script only if all environment variables are set
 if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASSWORD" || -z "$DB_PORT" || -z "$DHIS2_VERSION" || -z "$DOMAIN_NAME" ]]; then
-  log "One or more required environment variables are missing."
-  exit 1
+    log "One or more required environment variables are missing. Exiting..."
+    exit 1
 fi
+
+log "All required environment variables are set. Proceeding with the installation..."
 
 # Update and upgrade the system
 log "Updating and upgrading the system..."
