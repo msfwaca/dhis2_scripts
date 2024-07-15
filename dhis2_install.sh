@@ -8,6 +8,12 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $@"
 }
 
+# Check for required environment variables
+if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASSWORD" || -z "$DB_PORT" || -z "$DHIS2_VERSION" || -z "$DOMAIN_NAME" ]]; then
+  log "One or more required environment variables are missing."
+  exit 1
+fi
+
 # Update and upgrade the system
 log "Updating and upgrading the system..."
 sudo apt-get update && sudo apt-get upgrade -y
@@ -31,18 +37,18 @@ sudo systemctl enable postgresql
 
 # Check if the database already exists
 log "Checking if the DHIS2 database already exists..."
-DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='dhis2'")
+DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
 
 if [ "$DB_EXISTS" = "1" ]; then
-    log "Database dhis2 already exists. Skipping database creation."
+    log "Database $DB_NAME already exists. Skipping database creation."
 else
     log "Creating DHIS2 database and user..."
-    sudo -u postgres psql -c "CREATE DATABASE dhis2;"
-    sudo -u postgres psql -c "CREATE USER dhis WITH PASSWORD 'dhis';"
-    sudo -u postgres psql -c "ALTER DATABASE dhis2 OWNER TO dhis;"
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE dhis2 TO dhis;"
-    log "Enabling PostGIS extension on dhis2 database..."
-    sudo -u postgres psql -d dhis2 -c "CREATE EXTENSION postgis;"
+    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+    sudo -u postgres psql -c "ALTER DATABASE $DB_NAME OWNER TO $DB_USER;"
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    log "Enabling PostGIS extension on $DB_NAME database..."
+    sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION postgis;"
 fi
 
 # Install required libraries
@@ -50,7 +56,6 @@ log "Installing required libraries..."
 sudo apt-get install apt-transport-https ca-certificates curl software-properties-common -y
 
 # Install DHIS2
-DHIS2_VERSION="40.4.0"
 log "Downloading DHIS2 version $DHIS2_VERSION..."
 wget https://releases.dhis2.org/40/dhis2-stable-$DHIS2_VERSION.war
 
@@ -83,9 +88,9 @@ log "Creating DHIS2 configuration file..."
 sudo bash -c 'cat > /home/dhis/config/dhis.conf <<EOF
 connection.dialect = org.hibernate.dialect.PostgreSQLDialect
 connection.driver_class = org.postgresql.Driver
-connection.url = jdbc:postgresql://localhost:5432/dhis2
-connection.username = dhis
-connection.password = dhis
+connection.url = jdbc:postgresql://localhost:$DB_PORT/$DB_NAME
+connection.username = $DB_USER
+connection.password = $DB_PASSWORD
 connection.schema = update
 EOF'
 
@@ -94,33 +99,95 @@ log "Setting permissions for DHIS2 configuration file..."
 sudo chown dhis:dhis /home/dhis/config/dhis.conf
 sudo chmod 600 /home/dhis/config/dhis.conf
 
-# Install and configure Tomcat 9
-log "Installing and configuring Tomcat 9..."
-sudo apt-get install -y tomcat9-user
-sudo tomcat9-instance-create /home/dhis/tomcat-dhis
-sudo chown -R dhis:dhis /home/dhis/tomcat-dhis/
+# Download and install Tomcat 9 manually
+log "Downloading and installing Tomcat 9..."
+cd /tmp
+wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.64/bin/apache-tomcat-9.0.64.tar.gz
+sudo tar -xzf apache-tomcat-9.0.64.tar.gz -C /opt/
+sudo mv /opt/apache-tomcat-9.0.64 /opt/tomcat9
+sudo chown -R dhis:dhis /opt/tomcat9
 
 # Set environment variables in setenv.sh
 log "Setting environment variables in Tomcat's setenv.sh..."
-sudo bash -c 'cat > /home/dhis/tomcat-dhis/bin/setenv.sh <<EOF
+sudo bash -c 'cat > /opt/tomcat9/bin/setenv.sh <<EOF
 export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 export DHIS2_HOME=/home/dhis/config
 EOF'
 
 # Make sure setenv.sh is executable
-sudo chmod +x /home/dhis/tomcat-dhis/bin/setenv.sh
+sudo chmod +x /opt/tomcat9/bin/setenv.sh
 
 # Deploy DHIS2
 log "Deploying DHIS2..."
-sudo mv dhis.war /home/dhis/tomcat-dhis/webapps/dhis.war
+sudo mv dhis.war /opt/tomcat9/webapps/
 
 # Ensure Tomcat user has the correct permissions
 log "Setting permissions for Tomcat directories..."
-sudo chown -R dhis:dhis /home/dhis/config
-sudo chown dhis:dhis /home/dhis/tomcat-dhis/webapps/dhis.war
+sudo chown -R dhis:dhis /opt/tomcat9/webapps
+sudo chown dhis:dhis /opt/tomcat9/webapps/dhis.war
 
-# Start the Tomcat instance
-log "Starting the Tomcat instance..."
-sudo -u dhis /home/dhis/tomcat-dhis/bin/startup.sh
+# Create a systemd service file for Tomcat 9
+log "Creating systemd service file for Tomcat 9..."
+sudo bash -c 'cat > /etc/systemd/system/tomcat9.service <<EOF
+[Unit]
+Description=Apache Tomcat 9 Web Application Container
+After=network.target
 
-log "DHIS2 installation complete. Access it at http://your_server_ip:8080/dhis"
+[Service]
+Type=forking
+User=dhis
+Group=dhis
+Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64"
+Environment="DHIS2_HOME=/home/dhis/config"
+Environment="CATALINA_PID=/opt/tomcat9/temp/tomcat.pid"
+Environment="CATALINA_HOME=/opt/tomcat9"
+Environment="CATALINA_BASE=/opt/tomcat9"
+ExecStart=/opt/tomcat9/bin/startup.sh
+ExecStop=/opt/tomcat9/bin/shutdown.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+
+# Reload systemd and restart Tomcat
+log "Reloading systemd and restarting Tomcat..."
+sudo systemctl daemon-reload
+sudo systemctl start tomcat9
+sudo systemctl enable tomcat9
+
+# Install Nginx
+log "Installing Nginx..."
+sudo apt-get install nginx -y
+
+# Configure Nginx as a reverse proxy
+log "Configuring Nginx as a reverse proxy..."
+sudo bash -c 'cat > /etc/nginx/sites-available/dhis2 <<EOF
+server {
+    listen 80;
+    server_name $DOMAIN_NAME;
+
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        client_max_body_size 100M;
+
+    }
+}
+EOF'
+
+# Enable the Nginx configuration
+log "Enabling the Nginx configuration..."
+sudo ln -s /etc/nginx/sites-available/dhis2 /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+# Install Certbot and get SSL certificate
+log "Installing Certbot and getting SSL certificate..."
+sudo apt-get install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d $DOMAIN_NAME
+
+log "DHIS2 installation complete. Access it at https://$DOMAIN_NAME"
