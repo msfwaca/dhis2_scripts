@@ -3,7 +3,7 @@ name: Deploy DHIS2
 on:
   push:
     branches:
-      - dev
+      - main
 
 jobs:
   deploy:
