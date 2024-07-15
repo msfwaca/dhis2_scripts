@@ -26,6 +26,16 @@ jobs:
       run: |
         ssh-keyscan ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
+    - name: Log Environment Variables
+      run: |
+        echo "DB_NAME=${{ secrets.DB_NAME }}"
+        echo "DB_USER=${{ secrets.DB_USER }}"
+        echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}"
+        echo "DB_PORT=${{ secrets.DB_PORT }}"
+        echo "DHIS2_VERSION=${{ secrets.DHIS2_VERSION }}"
+        echo "DOMAIN_NAME=${{ secrets.DOMAIN_NAME }}"
+        echo "SERVER_IP=${{ secrets.SERVER_IP }}"
+
     - name: Deploy DHIS2
       env:
         DB_NAME: ${{ secrets.DB_NAME }}
@@ -36,8 +46,8 @@ jobs:
         DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
         SERVER_IP: ${{ secrets.SERVER_IP }}
       run: |
-        scp dhis2_install.sh root@${{ secrets.SERVER_IP }}:/tmp/
-        ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+        scp dhis2_install.sh ubuntu@${{ secrets.SERVER_IP }}:/tmp/
+        ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.SERVER_IP }} << 'EOF'
           export DB_NAME=${DB_NAME}
           export DB_USER=${DB_USER}
           export DB_PASSWORD=${DB_PASSWORD}

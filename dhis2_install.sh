@@ -8,45 +8,6 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $@"
 }
 
-# Check for required environment variables and log their presence
-log "Checking required environment variables..."
-if [[ -z "$DB_NAME" ]]; then
-    log "ERROR: DB_NAME is not set!"
-else
-    log "DB_NAME is set"
-fi
-
-if [[ -z "$DB_USER" ]]; then
-    log "ERROR: DB_USER is not set!"
-else
-    log "DB_USER is set"
-fi
-
-if [[ -z "$DB_PASSWORD" ]]; then
-    log "ERROR: DB_PASSWORD is not set!"
-else
-    log "DB_PASSWORD is set"
-fi
-
-if [[ -z "$DB_PORT" ]]; then
-    log "ERROR: DB_PORT is not set!"
-else
-    log "DB_PORT is set"
-fi
-
-if [[ -z "$DHIS2_VERSION" ]]; then
-    log "ERROR: DHIS2_VERSION is not set!"
-else
-    log "DHIS2_VERSION is set"
-fi
-
-if [[ -z "$DOMAIN_NAME" ]]; then
-    log "ERROR: DOMAIN_NAME is not set!"
-else
-    log "DOMAIN_NAME is set"
-fi
-
-
 # Check for required environment variables
 if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASSWORD" || -z "$DB_PORT" || -z "$DHIS2_VERSION" || -z "$DOMAIN_NAME" ]]; then
   log "One or more required environment variables are missing."
