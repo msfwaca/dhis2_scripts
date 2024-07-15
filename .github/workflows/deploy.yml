@@ -1,0 +1,40 @@
+name: Deploy DHIS2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Deploy DHIS2
+      env:
+        DB_NAME: ${{ secrets.DB_NAME }}
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        DB_PORT: ${{ secrets.DB_PORT }}
+        DHIS2_VERSION: ${{ secrets.DHIS2_VERSION }}
+        DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+        SERVER_IP: ${{ secrets.SERVER_IP }}
+      run: |
+        scp dhis2_scripts/dhis2_install.sh user@${{ secrets.SERVER_IP }}:/tmp/
+        ssh -o StrictHostKeyChecking=no user@${{ secrets.SERVER_IP }} << 'EOF'
+          export DB_NAME=${DB_NAME}
+          export DB_USER=${DB_USER}
+          export DB_PASSWORD=${DB_PASSWORD}
+          export DB_PORT=${DB_PORT}
+          export DHIS2_VERSION=${DHIS2_VERSION}
+          export DOMAIN_NAME=${DOMAIN_NAME}
+          bash /tmp/dhis2_install.sh
+        EOF
