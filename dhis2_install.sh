@@ -151,4 +151,38 @@ sudo systemctl daemon-reload
 sudo systemctl start tomcat9
 sudo systemctl enable tomcat9
 
-log "DHIS2 installation complete. Access it at http://your_server_ip:8080/dhis"
+# Install Nginx
+log "Installing Nginx..."
+sudo apt-get install nginx -y
+
+# Configure Nginx as a reverse proxy
+DOMAIN_NAME="his-dev.msf-waca.org" #  domain name
+log "Configuring Nginx as a reverse proxy..."
+sudo bash -c 'cat > /etc/nginx/sites-available/dhis2 <<EOF
+server {
+    listen 80;
+    server_name $DOMAIN_NAME;
+
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        client_max_body_size 100M;
+    }
+}
+EOF'
+
+# Enable the Nginx configuration
+log "Enabling the Nginx configuration..."
+sudo ln -s /etc/nginx/sites-available/dhis2 /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+
+# Install Certbot and get SSL certificate
+log "Installing Certbot and getting SSL certificate..."
+sudo apt-get install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d $DOMAIN_NAME
+
+log "DHIS2 installation complete. Access it at https://$DOMAIN_NAME"
