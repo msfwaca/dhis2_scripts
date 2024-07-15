@@ -46,8 +46,8 @@ jobs:
         DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
         SERVER_IP: ${{ secrets.SERVER_IP }}
       run: |
-        scp dhis2_install.sh ubuntu@${{ secrets.SERVER_IP }}:/tmp/
-        ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.SERVER_IP }} << 'EOF'
+        scp dhis2_install.sh root@${{ secrets.SERVER_IP }}:/tmp/
+        ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
           export DB_NAME=${DB_NAME}
           export DB_USER=${DB_USER}
           export DB_PASSWORD=${DB_PASSWORD}
