@@ -8,6 +8,12 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $@"
 }
 
+# Check for required environment variables
+if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASSWORD" || -z "$DB_PORT" || -z "$DHIS2_VERSION" || -z "$DOMAIN_NAME" ]]; then
+  log "One or more required environment variables are missing."
+  exit 1
+fi
+
 # Update and upgrade the system
 log "Updating and upgrading the system..."
 sudo apt-get update && sudo apt-get upgrade -y
@@ -31,18 +37,18 @@ sudo systemctl enable postgresql
 
 # Check if the database already exists
 log "Checking if the DHIS2 database already exists..."
-DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='dhis2'")
+DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'")
 
 if [ "$DB_EXISTS" = "1" ]; then
-    log "Database dhis2 already exists. Skipping database creation."
+    log "Database $DB_NAME already exists. Skipping database creation."
 else
     log "Creating DHIS2 database and user..."
-    sudo -u postgres psql -c "CREATE DATABASE dhis2;"
-    sudo -u postgres psql -c "CREATE USER dhis WITH PASSWORD 'dhis';"
-    sudo -u postgres psql -c "ALTER DATABASE dhis2 OWNER TO dhis;"
-    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE dhis2 TO dhis;"
-    log "Enabling PostGIS extension on dhis2 database..."
-    sudo -u postgres psql -d dhis2 -c "CREATE EXTENSION postgis;"
+    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
+    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+    sudo -u postgres psql -c "ALTER DATABASE $DB_NAME OWNER TO $DB_USER;"
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
+    log "Enabling PostGIS extension on $DB_NAME database..."
+    sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION postgis;"
 fi
 
 # Install required libraries
@@ -50,7 +56,6 @@ log "Installing required libraries..."
 sudo apt-get install apt-transport-https ca-certificates curl software-properties-common -y
 
 # Install DHIS2
-DHIS2_VERSION="40.4.0"
 log "Downloading DHIS2 version $DHIS2_VERSION..."
 wget https://releases.dhis2.org/40/dhis2-stable-$DHIS2_VERSION.war
 
@@ -83,9 +88,9 @@ log "Creating DHIS2 configuration file..."
 sudo bash -c 'cat > /home/dhis/config/dhis.conf <<EOF
 connection.dialect = org.hibernate.dialect.PostgreSQLDialect
 connection.driver_class = org.postgresql.Driver
-connection.url = jdbc:postgresql://localhost:5432/dhis2
-connection.username = dhis
-connection.password = dhis
+connection.url = jdbc:postgresql://localhost:$DB_PORT/$DB_NAME
+connection.username = $DB_USER
+connection.password = $DB_PASSWORD
 connection.schema = update
 EOF'
 
@@ -156,7 +161,6 @@ log "Installing Nginx..."
 sudo apt-get install nginx -y
 
 # Configure Nginx as a reverse proxy
-DOMAIN_NAME="his-dev.msf-waca.org" #  domain name
 log "Configuring Nginx as a reverse proxy..."
 sudo bash -c 'cat > /etc/nginx/sites-available/dhis2 <<EOF
 server {
@@ -170,6 +174,7 @@ server {
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         client_max_body_size 100M;
+
     }
 }
 EOF'
