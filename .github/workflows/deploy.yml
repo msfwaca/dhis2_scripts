@@ -14,9 +14,17 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.5.3
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      id: ssh-setup
+      run: |
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/ssh_private_key
+        chmod 600 /tmp/ssh_private_key
+        eval "$(ssh-agent -s)"
+        ssh-add /tmp/ssh_private_key
+
+    - name: Add remote server to known hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
     - name: Deploy DHIS2
       env:
@@ -28,8 +36,8 @@ jobs:
         DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
         SERVER_IP: ${{ secrets.SERVER_IP }}
       run: |
-        scp dhis2_scripts/dhis2_install.sh user@${{ secrets.SERVER_IP }}:/tmp/
-        ssh -o StrictHostKeyChecking=no user@${{ secrets.SERVER_IP }} << 'EOF'
+        scp dhis2_scripts/dhis2_install.sh ubuntu@${{ secrets.SERVER_IP }}:/tmp/
+        ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.SERVER_IP }} << 'EOF'
           export DB_NAME=${DB_NAME}
           export DB_USER=${DB_USER}
           export DB_PASSWORD=${DB_PASSWORD}
