@@ -8,20 +8,33 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $@"
 }
 
-# Check for required environment variables and log their presence
-log "Checking required environment variables..."
-[ -z "$DB_NAME" ] && log "ERROR: DB_NAME is not set!" || log "DB_NAME is set to $DB_NAME"
-[ -z "$DB_USER" ] && log "ERROR: DB_USER is not set!" || log "DB_USER is set to $DB_USER"
-[ -z "$DB_PASSWORD" ] && log "ERROR: DB_PASSWORD is not set!" || log "DB_PASSWORD is set to $DB_PASSWORD"
-[ -z "$DB_PORT" ] && log "ERROR: DB_PORT is not set!" || log "DB_PORT is set to $DB_PORT"
-[ -z "$DHIS2_VERSION" ] && log "ERROR: DHIS2_VERSION is not set!" || log "DHIS2_VERSION is set to $DHIS2_VERSION"
-[ -z "$DOMAIN_NAME" ] && log "ERROR: DOMAIN_NAME is not set!" || log "DOMAIN_NAME is set to $DOMAIN_NAME"
+# Function to prompt for input if environment variable is not set
+prompt_if_empty() {
+    local var_name=$1
+    local var_value=$2
+    local prompt_message=$3
 
-# Proceed with the rest of the script only if all environment variables are set
-if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASSWORD" || -z "$DB_PORT" || -z "$DHIS2_VERSION" || -z "$DOMAIN_NAME" ]]; then
-    log "One or more required environment variables are missing. Exiting..."
-    exit 1
-fi
+    if [[ -z "$var_value" ]]; then
+        read -p "$prompt_message" var_value
+        eval "$var_name='$var_value'"
+    fi
+}
+
+# Check and prompt for required environment variables
+log "Checking required environment variables..."
+prompt_if_empty DB_NAME "$DB_NAME" "Enter database name (DB_NAME): "
+prompt_if_empty DB_USER "$DB_USER" "Enter database user (DB_USER): "
+prompt_if_empty DB_PASSWORD "$DB_PASSWORD" "Enter database password (DB_PASSWORD): "
+prompt_if_empty DB_PORT "$DB_PORT" "Enter database port (DB_PORT): "
+prompt_if_empty DHIS2_VERSION "$DHIS2_VERSION" "Enter DHIS2 version (DHIS2_VERSION): "
+prompt_if_empty DOMAIN_NAME "$DOMAIN_NAME" "Enter domain name (DOMAIN_NAME): "
+
+# Log the values of environment variables (without sensitive data)
+log "DB_NAME is set to $DB_NAME"
+log "DB_USER is set to $DB_USER"
+log "DB_PORT is set to $DB_PORT"
+log "DHIS2_VERSION is set to $DHIS2_VERSION"
+log "DOMAIN_NAME is set to $DOMAIN_NAME"
 
 log "All required environment variables are set. Proceeding with the installation..."
 
