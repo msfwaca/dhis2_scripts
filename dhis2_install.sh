@@ -3,16 +3,39 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-# Function to log and echo messages
+# Function to log and echo messages securely
 log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] $@"
 }
 
-# Check for required environment variables
-if [[ -z "$DB_NAME" || -z "$DB_USER" || -z "$DB_PASSWORD" || -z "$DB_PORT" || -z "$DHIS2_VERSION" || -z "$DOMAIN_NAME" ]]; then
-  log "One or more required environment variables are missing."
-  exit 1
-fi
+# Function to prompt for input
+prompt_for_variable() {
+    local var_name=$1
+    local prompt_message=$2
+
+    read -p "$prompt_message" input_value
+    export "$var_name=$input_value"
+}
+
+# Prompt for required environment variables
+log "Prompting for required environment variables..."
+prompt_for_variable DB_NAME "Enter database name (DB_NAME): "
+prompt_for_variable DB_USER "Enter database user (DB_USER): "
+prompt_for_variable DB_PASSWORD "Enter database password (DB_PASSWORD): "
+prompt_for_variable DB_PORT "Enter database port (DB_PORT): "
+prompt_for_variable DHIS2_VERSION "Enter DHIS2 version (DHIS2_VERSION): "
+prompt_for_variable DOMAIN_NAME "Enter domain name (DOMAIN_NAME): "
+prompt_for_variable SERVER_IP "Enter server IP (SERVER_IP): "
+
+# Log the values of environment variables (without sensitive data)
+log "DB_NAME is set to $DB_NAME"
+log "DB_USER is set to $DB_USER"
+log "DB_PORT is set to $DB_PORT"
+log "DHIS2_VERSION is set to $DHIS2_VERSION"
+log "DOMAIN_NAME is set to $DOMAIN_NAME"
+log "SERVER_IP is set to $SERVER_IP"
+
+log "All required environment variables are set. Proceeding with the installation..."
 
 # Update and upgrade the system
 log "Updating and upgrading the system..."
@@ -85,50 +108,54 @@ fi
 
 # Create DHIS2 configuration file
 log "Creating DHIS2 configuration file..."
-sudo bash -c 'cat > /home/dhis/config/dhis.conf <<EOF
+sudo bash -c "cat > /home/dhis/config/dhis.conf <<EOF
 connection.dialect = org.hibernate.dialect.PostgreSQLDialect
 connection.driver_class = org.postgresql.Driver
 connection.url = jdbc:postgresql://localhost:$DB_PORT/$DB_NAME
 connection.username = $DB_USER
 connection.password = $DB_PASSWORD
 connection.schema = update
-EOF'
+EOF"
 
 # Ensure the DHIS2 configuration file is readable
 log "Setting permissions for DHIS2 configuration file..."
 sudo chown dhis:dhis /home/dhis/config/dhis.conf
-sudo chmod 600 /home/dhis/config/dhis.conf
+sudo chmod 755 /home/dhis/config/dhis.conf
 
-# Download and install Tomcat 9 manually
-log "Downloading and installing Tomcat 9..."
-cd /tmp
-wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.64/bin/apache-tomcat-9.0.64.tar.gz
-sudo tar -xzf apache-tomcat-9.0.64.tar.gz -C /opt/
-sudo mv /opt/apache-tomcat-9.0.64 /opt/tomcat9
-sudo chown -R dhis:dhis /opt/tomcat9
+# Check if Tomcat is already installed
+if [ "$(ls -A /opt/tomcat9)" ]; then
+    log "Tomcat directory is not empty. Skipping Tomcat installation."
+else
+    # Download and install Tomcat 9 manually
+    log "Downloading and installing Tomcat 9..."
+    cd /tmp
+    wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.64/bin/apache-tomcat-9.0.64.tar.gz
+    sudo tar -xzf apache-tomcat-9.0.64.tar.gz -C /opt/
+    sudo mv /opt/apache-tomcat-9.0.64 /opt/tomcat9
+    sudo chown -R dhis:dhis /opt/tomcat9
 
-# Set environment variables in setenv.sh
-log "Setting environment variables in Tomcat's setenv.sh..."
-sudo bash -c 'cat > /opt/tomcat9/bin/setenv.sh <<EOF
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-export DHIS2_HOME=/home/dhis/config
-EOF'
+    # Set environment variables in setenv.sh
+    log "Setting environment variables in Tomcat's setenv.sh..."
+    sudo bash -c "cat > /opt/tomcat9/bin/setenv.sh <<EOF
+    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    export DHIS2_HOME=/home/dhis/config
+    EOF"
 
-# Make sure setenv.sh is executable
-sudo chmod +x /opt/tomcat9/bin/setenv.sh
+    # Make sure setenv.sh is executable
+    sudo chmod +x /opt/tomcat9/bin/setenv.sh
 
-# Deploy DHIS2
-log "Deploying DHIS2..."
-sudo mv dhis.war /opt/tomcat9/webapps/
+    # Deploy DHIS2
+    log "Deploying DHIS2..."
+    sudo mv dhis.war /opt/tomcat9/webapps/
 
-# Ensure Tomcat user has the correct permissions
-log "Setting permissions for Tomcat directories..."
-sudo chown -R dhis:dhis /opt/tomcat9/webapps
-sudo chown dhis:dhis /opt/tomcat9/webapps/dhis.war
+    # Ensure Tomcat user has the correct permissions
+    log "Setting permissions for Tomcat directories..."
+    sudo chown -R dhis:dhis /opt/tomcat9/webapps
+    sudo chown dhis:dhis /opt/tomcat9/webapps/dhis.war
 
-# Create a systemd service file for Tomcat 9
-log "Creating systemd service file for Tomcat 9..."
-sudo bash -c 'cat > /etc/systemd/system/tomcat9.service <<EOF
+    # Create a systemd service file for Tomcat 9
+    log "Creating systemd service file for Tomcat 9..."
+    sudo bash -c "cat > /etc/systemd/system/tomcat9.service <<EOF
 [Unit]
 Description=Apache Tomcat 9 Web Application Container
 After=network.target
@@ -137,38 +164,43 @@ After=network.target
 Type=forking
 User=dhis
 Group=dhis
-Environment="JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64"
-Environment="DHIS2_HOME=/home/dhis/config"
-Environment="CATALINA_PID=/opt/tomcat9/temp/tomcat.pid"
-Environment="CATALINA_HOME=/opt/tomcat9"
-Environment="CATALINA_BASE=/opt/tomcat9"
+Environment=\"JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64\"
+Environment=\"DHIS2_HOME=/home/dhis/config\"
+Environment=\"CATALINA_PID=/opt/tomcat9/temp/tomcat.pid\"
+Environment=\"CATALINA_HOME=/opt/tomcat9\"
+Environment=\"CATALINA_BASE=/opt/tomcat9\"
 ExecStart=/opt/tomcat9/bin/startup.sh
 ExecStop=/opt/tomcat9/bin/shutdown.sh
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+EOF"
 
-# Reload systemd and restart Tomcat
-log "Reloading systemd and restarting Tomcat..."
-sudo systemctl daemon-reload
-sudo systemctl start tomcat9
-sudo systemctl enable tomcat9
+    # Reload systemd and restart Tomcat
+    log "Reloading systemd and restarting Tomcat..."
+    sudo systemctl daemon-reload
+    sudo systemctl start tomcat9
+    sudo systemctl enable tomcat9
+fi
 
 # Install Nginx
 log "Installing Nginx..."
 sudo apt-get install nginx -y
 
-# Configure Nginx as a reverse proxy
-log "Configuring Nginx as a reverse proxy..."
-sudo bash -c 'cat > /etc/nginx/sites-available/dhis2 <<EOF
+# Check if the Nginx configuration file already exists
+if [ -f /etc/nginx/sites-available/$DOMAIN_NAME ]; then
+    log "Nginx configuration file for $DOMAIN_NAME already exists. Skipping Nginx configuration."
+else
+    # Configure Nginx as a reverse proxy with the domain name
+    log "Configuring Nginx as a reverse proxy with server_name $DOMAIN_NAME..."
+    sudo bash -c "cat > /etc/nginx/sites-available/$DOMAIN_NAME <<EOF
 server {
     listen 80;
     server_name $DOMAIN_NAME;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:8080/dhis;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -177,17 +209,18 @@ server {
 
     }
 }
-EOF'
+EOF"
 
-# Enable the Nginx configuration
-log "Enabling the Nginx configuration..."
-sudo ln -s /etc/nginx/sites-available/dhis2 /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
+    # Enable the Nginx configuration
+    log "Enabling the Nginx configuration..."
+    sudo ln -s /etc/nginx/sites-available/$DOMAIN_NAME /etc/nginx/sites-enabled/
+    sudo nginx -t
+    sudo systemctl restart nginx
 
-# Install Certbot and get SSL certificate
-log "Installing Certbot and getting SSL certificate..."
-sudo apt-get install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d $DOMAIN_NAME
+    # Install Certbot and get SSL certificate
+    log "Installing Certbot and getting SSL certificate..."
+    sudo apt-get install certbot python3-certbot-nginx -y
+    sudo certbot --nginx -d $DOMAIN_NAME
+fi
 
 log "DHIS2 installation complete. Access it at https://$DOMAIN_NAME"
