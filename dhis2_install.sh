@@ -11,23 +11,24 @@ log() {
 # Function to prompt for input if environment variable is not set
 prompt_if_empty() {
     local var_name=$1
-    local var_value=$2
-    local prompt_message=$3
+    local prompt_message=$2
 
-    if [[ -z "$var_value" ]]; then
-        read -p "$prompt_message" var_value
-        eval "$var_name='$var_value'"
+    if [[ -z "${!var_name}" ]]; then
+        read -p "$prompt_message" input_value
+        export "$var_name=$input_value"
+    else
+        log "$var_name is set to ${!var_name}"
     fi
 }
 
 # Check and prompt for required environment variables
 log "Checking required environment variables..."
-prompt_if_empty DB_NAME "$DB_NAME" "Enter database name (DB_NAME): "
-prompt_if_empty DB_USER "$DB_USER" "Enter database user (DB_USER): "
-prompt_if_empty DB_PASSWORD "$DB_PASSWORD" "Enter database password (DB_PASSWORD): "
-prompt_if_empty DB_PORT "$DB_PORT" "Enter database port (DB_PORT): "
-prompt_if_empty DHIS2_VERSION "$DHIS2_VERSION" "Enter DHIS2 version (DHIS2_VERSION): "
-prompt_if_empty DOMAIN_NAME "$DOMAIN_NAME" "Enter domain name (DOMAIN_NAME): "
+prompt_if_empty DB_NAME "Enter database name (DB_NAME): "
+prompt_if_empty DB_USER "Enter database user (DB_USER): "
+prompt_if_empty DB_PASSWORD "Enter database password (DB_PASSWORD): "
+prompt_if_empty DB_PORT "Enter database port (DB_PORT): "
+prompt_if_empty DHIS2_VERSION "Enter DHIS2 version (DHIS2_VERSION): "
+prompt_if_empty DOMAIN_NAME "Enter domain name (DOMAIN_NAME): "
 
 # Log the values of environment variables (without sensitive data)
 log "DB_NAME is set to $DB_NAME"
