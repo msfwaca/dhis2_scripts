@@ -13,12 +13,8 @@ prompt_if_empty() {
     local var_name=$1
     local prompt_message=$2
 
-    if [[ -z "${!var_name}" ]]; then
-        read -p "$prompt_message" input_value
-        export "$var_name=$input_value"
-    else
-        log "$var_name is set to ${!var_name}"
-    fi
+    read -p "$prompt_message" input_value
+    export "$var_name=$input_value"
 }
 
 # Prompt for required environment variables
