@@ -184,7 +184,7 @@ log "Installing Nginx..."
 sudo apt-get install nginx -y
 
 # Configure Nginx as a reverse proxy
-log "Configuring Nginx as a reverse proxy..."
+log "Configuring Nginx as a reverse proxy... log $DOMAIN_NAME "
 sudo bash -c 'cat > /etc/nginx/sites-available/dhis2 <<EOF
 server {
     listen 80;
