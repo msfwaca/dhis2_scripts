@@ -1,12 +1,11 @@
 name: Deploy DHIS2
 
 on:
+  push:
+    branches:
+      - dev
   workflow_dispatch:
     inputs:
-      BRANCH:
-        description: 'Branch to deploy'
-        required: true
-        default: 'dev'
       DB_NAME:
         description: 'Database name'
         required: true
@@ -37,8 +36,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
-      with:
-        ref: ${{ github.event.inputs.BRANCH }}
 
     - name: Set up SSH
       id: ssh-setup
@@ -51,17 +48,17 @@ jobs:
 
     - name: Add remote server to known hosts
       run: |
-        ssh-keyscan ${{ github.event.inputs.SERVER_IP }} >> ~/.ssh/known_hosts
+        ssh-keyscan ${{ github.event.inputs.SERVER_IP || secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
     - name: Deploy DHIS2
       env:
-        DB_NAME: ${{ github.event.inputs.DB_NAME }}
-        DB_USER: ${{ github.event.inputs.DB_USER }}
-        DB_PASSWORD: ${{ github.event.inputs.DB_PASSWORD }}
-        DB_PORT: ${{ github.event.inputs.DB_PORT }}
-        DHIS2_VERSION: ${{ github.event.inputs.DHIS2_VERSION }}
-        DOMAIN_NAME: ${{ github.event.inputs.DOMAIN_NAME }}
-        SERVER_IP: ${{ github.event.inputs.SERVER_IP }}
+        DB_NAME: ${{ github.event.inputs.DB_NAME || secrets.DB_NAME }}
+        DB_USER: ${{ github.event.inputs.DB_USER || secrets.DB_USER }}
+        DB_PASSWORD: ${{ github.event.inputs.DB_PASSWORD || secrets.DB_PASSWORD }}
+        DB_PORT: ${{ github.event.inputs.DB_PORT || secrets.DB_PORT }}
+        DHIS2_VERSION: ${{ github.event.inputs.DHIS2_VERSION || secrets.DHIS2_VERSION }}
+        DOMAIN_NAME: ${{ github.event.inputs.DOMAIN_NAME || secrets.DOMAIN_NAME }}
+        SERVER_IP: ${{ github.event.inputs.SERVER_IP || secrets.SERVER_IP }}
       run: |
         scp dhis2_scripts/dhis2_install.sh root@${{ env.SERVER_IP }}:/tmp/
         ssh -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} << 'EOF'
