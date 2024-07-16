@@ -185,13 +185,13 @@ sudo apt-get install nginx -y
 
 # Configure Nginx as a reverse proxy
 log "Configuring Nginx as a reverse proxy... log $DOMAIN_NAME "
-sudo bash -c 'cat > /etc/nginx/sites-available/dhis2 <<EOF
+sudo bash -c 'cat > /etc/nginx/sites-available/$DOMAIN_NAME <<EOF
 server {
     listen 80;
     server_name $DOMAIN_NAME;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:8080/dhis;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -204,7 +204,7 @@ EOF'
 
 # Enable the Nginx configuration
 log "Enabling the Nginx configuration..."
-sudo ln -s /etc/nginx/sites-available/dhis2 /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/$DOMAIN_NAME /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl restart nginx
 
