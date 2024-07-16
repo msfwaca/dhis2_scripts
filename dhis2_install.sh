@@ -120,7 +120,7 @@ EOF"
 # Ensure the DHIS2 configuration file is readable
 log "Setting permissions for DHIS2 configuration file..."
 sudo chown dhis:dhis /home/dhis/config/dhis.conf
-sudo chmod 600 /home/dhis/config/dhis.conf
+sudo chmod 755 /home/dhis/config/dhis.conf
 
 # Check if Tomcat is already installed
 if [ "$(ls -A /opt/tomcat9)" ]; then
@@ -137,9 +137,9 @@ else
     # Set environment variables in setenv.sh
     log "Setting environment variables in Tomcat's setenv.sh..."
     sudo bash -c "cat > /opt/tomcat9/bin/setenv.sh <<EOF
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-export DHIS2_HOME=/home/dhis/config
-EOF"
+    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    export DHIS2_HOME=/home/dhis/config
+    EOF"
 
     # Make sure setenv.sh is executable
     sudo chmod +x /opt/tomcat9/bin/setenv.sh
