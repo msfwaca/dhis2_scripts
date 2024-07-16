@@ -21,14 +21,15 @@ prompt_if_empty() {
     fi
 }
 
-# Check and prompt for required environment variables
-log "Checking required environment variables..."
+# Prompt for required environment variables
+log "Prompting for required environment variables..."
 prompt_if_empty DB_NAME "Enter database name (DB_NAME): "
 prompt_if_empty DB_USER "Enter database user (DB_USER): "
 prompt_if_empty DB_PASSWORD "Enter database password (DB_PASSWORD): "
 prompt_if_empty DB_PORT "Enter database port (DB_PORT): "
 prompt_if_empty DHIS2_VERSION "Enter DHIS2 version (DHIS2_VERSION): "
 prompt_if_empty DOMAIN_NAME "Enter domain name (DOMAIN_NAME): "
+prompt_if_empty SERVER_IP "Enter server IP (SERVER_IP): "
 
 # Log the values of environment variables (without sensitive data)
 log "DB_NAME is set to $DB_NAME"
@@ -36,6 +37,7 @@ log "DB_USER is set to $DB_USER"
 log "DB_PORT is set to $DB_PORT"
 log "DHIS2_VERSION is set to $DHIS2_VERSION"
 log "DOMAIN_NAME is set to $DOMAIN_NAME"
+log "SERVER_IP is set to $SERVER_IP"
 
 log "All required environment variables are set. Proceeding with the installation..."
 
