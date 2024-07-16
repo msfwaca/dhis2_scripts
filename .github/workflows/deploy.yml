@@ -24,30 +24,20 @@ jobs:
 
     - name: Add remote server to known hosts
       run: |
-        ssh-keyscan ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-
-        echo "Checking environment variables..."
-          [ -z "${{ secrets.DB_NAME }}" ] && echo "DB_NAME is missing" || echo "DB_NAME is set"
-          [ -z "${{ secrets.DB_USER }}" ] && echo "DB_USER is missing" || echo "DB_USER is set"
-          [ -z "${{ secrets.DB_PASSWORD }}" ] && echo "DB_PASSWORD is missing" || echo "DB_PASSWORD is set"
-          [ -z "${{ secrets.DB_PORT }}" ] && echo "DB_PORT is missing" || echo "DB_PORT is set"
-          [ -z "${{ secrets.DHIS2_VERSION }}" ] && echo "DHIS2_VERSION is missing" || echo "DHIS2_VERSION is set"
-          [ -z "${{ secrets.DOMAIN_NAME }}" ] && echo "DOMAIN_NAME is missing" || echo "DOMAIN_NAME is set"
-          [ -z "${{ secrets.SERVER_IP }}" ] && echo "SERVER_IP is missing" || echo "SERVER_IP is set"
-          [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ] && echo "SSH_PRIVATE_KEY is missing" || echo "SSH_PRIVATE_KEY is set"
+        ssh-keyscan your_server_ip >> ~/.ssh/known_hosts
 
     - name: Deploy DHIS2
       env:
-        DB_NAME: ${{ secrets.DB_NAME }}
-        DB_USER: ${{ secrets.DB_USER }}
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        DB_PORT: ${{ secrets.DB_PORT }}
-        DHIS2_VERSION: ${{ secrets.DHIS2_VERSION }}
-        DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
-        SERVER_IP: ${{ secrets.SERVER_IP }}
+        DB_NAME: your_db_name
+        DB_USER: your_db_user
+        DB_PASSWORD: your_db_password
+        DB_PORT: your_db_port
+        DHIS2_VERSION: your_dhis2_version
+        DOMAIN_NAME: your_domain_name
+        SERVER_IP: your_server_ip
       run: |
-        scp dhis2_install.sh root@${{ secrets.SERVER_IP }}:/tmp/
-        ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+        scp dhis2_scripts/dhis2_install.sh root@${{ env.SERVER_IP }}:/tmp/
+        ssh -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} << 'EOF'
           export DB_NAME=${DB_NAME}
           export DB_USER=${DB_USER}
           export DB_PASSWORD=${DB_PASSWORD}
