@@ -30,4 +30,3 @@ jobs:
       run: |
         chmod +x dhis2_install.sh
         scp dhis2_install.sh root@52.16.190.209:/tmp/
-        ssh -o StrictHostKeyChecking=no root@52.16.190.209 'bash /tmp/dhis2_install.sh'
