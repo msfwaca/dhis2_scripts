@@ -188,9 +188,13 @@ fi
 log "Installing Nginx..."
 sudo apt-get install nginx -y
 
-# Configure Nginx as a reverse proxy with the domain name
-log "Configuring Nginx as a reverse proxy with server_name $DOMAIN_NAME..."
-sudo bash -c "cat > /etc/nginx/sites-available/$DOMAIN_NAME <<EOF
+# Check if the Nginx configuration file already exists
+if [ -f /etc/nginx/sites-available/$DOMAIN_NAME ]; then
+    log "Nginx configuration file for $DOMAIN_NAME already exists. Skipping Nginx configuration."
+else
+    # Configure Nginx as a reverse proxy with the domain name
+    log "Configuring Nginx as a reverse proxy with server_name $DOMAIN_NAME..."
+    sudo bash -c "cat > /etc/nginx/sites-available/$DOMAIN_NAME <<EOF
 server {
     listen 80;
     server_name $DOMAIN_NAME;
@@ -207,15 +211,16 @@ server {
 }
 EOF"
 
-# Enable the Nginx configuration
-log "Enabling the Nginx configuration..."
-sudo ln -s /etc/nginx/sites-available/$DOMAIN_NAME /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
+    # Enable the Nginx configuration
+    log "Enabling the Nginx configuration..."
+    sudo ln -s /etc/nginx/sites-available/$DOMAIN_NAME /etc/nginx/sites-enabled/
+    sudo nginx -t
+    sudo systemctl restart nginx
 
-# Install Certbot and get SSL certificate
-log "Installing Certbot and getting SSL certificate..."
-sudo apt-get install certbot python3-certbot-nginx -y
-sudo certbot --nginx -d $DOMAIN_NAME
+    # Install Certbot and get SSL certificate
+    log "Installing Certbot and getting SSL certificate..."
+    sudo apt-get install certbot python3-certbot-nginx -y
+    sudo certbot --nginx -d $DOMAIN_NAME
+fi
 
 log "DHIS2 installation complete. Access it at https://$DOMAIN_NAME"
