@@ -60,7 +60,7 @@ jobs:
         DOMAIN_NAME: ${{ github.event.inputs.DOMAIN_NAME || secrets.DOMAIN_NAME }}
         SERVER_IP: ${{ github.event.inputs.SERVER_IP || secrets.SERVER_IP }}
       run: |
-        scp dhis2_scripts/dhis2_install.sh root@${{ env.SERVER_IP }}:/tmp/
+        scp dhis2_install.sh root@${{ env.SERVER_IP }}:/tmp/
         ssh -o StrictHostKeyChecking=no root@${{ env.SERVER_IP }} << 'EOF'
           export DB_NAME=${DB_NAME}
           export DB_USER=${DB_USER}
